@@ -80,7 +80,7 @@ TalentScout Chatbot is designed to streamline the recruitment process by automat
 - **dotenv**: For managing environment variables.
 
 ### **Model Details**
-- **LLM**: ChatGroq (model: `llama-3.3-70b-versatile`) is used for prompt generation and information extraction.
+- **LLM**: ChatGroq (model: `llama-3.3-70b-versatile` / `meta-llama/llama-prompt-guard-2-86m`) is used for prompt generation and information extraction.
 
 ### **Architectural Decisions**
 - **Modular Design**: The code is divided into utility files for better maintainability.
@@ -148,4 +148,4 @@ talentscout-chatbot/
 ---
 
 ## **Contributors**
-- **Your Name**: Developer and Maintainer
+- **Arvinder Singh Dhoul**: Developer and Maintainer
