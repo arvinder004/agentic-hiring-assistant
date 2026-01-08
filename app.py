@@ -8,6 +8,7 @@ from utils.validation import check_message_relevance, detect_update_request, val
 from utils.prompts import generate_conclusion, generate_confirmation_prompt, generate_field_prompt, generate_greeting, generate_irrelevant_response, generate_technical_question
 from utils.progress import render_progress_bar
 from utils.sidebar import render_sidebar
+from utils.export import export_candidate_data
 
 FIELD_ORDER = ["name", "email", "phone", "years_experience", "desired_position", "location", "tech_stack"]
 
@@ -266,6 +267,13 @@ def main():
     
     elif st.session_state.stage == 3:
         st.success("Interview completed! Check the sidebar to download your interview data.")
+        
+        # Automatically save data to MongoDB
+        try:
+            export_candidate_data()
+            st.info("Interview data has been automatically saved to MongoDB.")
+        except Exception as e:
+            st.error(f"Failed to save data to MongoDB: {e}")
 
 if __name__ == "__main__":
     main()
