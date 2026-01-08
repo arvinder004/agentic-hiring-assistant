@@ -14,12 +14,10 @@ def export_candidate_data():
         "interview_stage_completed": st.session_state.stage
     }
     
-    # Save to MongoDB
     try:
         inserted_id = save_interview_data(export_data)
         st.success(f"Data saved to MongoDB with ID: {inserted_id}")
     except Exception as e:
         st.error(f"Failed to save data to MongoDB: {e}")
     
-    # Return JSON for download
     return json.dumps(export_data, indent=2)

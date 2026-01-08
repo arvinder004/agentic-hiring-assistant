@@ -14,17 +14,11 @@ def validate_and_save_field(field_name, value):
     
     # Email validation
     if field_name == "email":
-        email_str = str(value)
-        if "@" not in email_str:
+        email_str = str(value).strip().lower()
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email_str):
             return False
-        parts = email_str.split("@")
-        if len(parts) != 2:
-            return False
-        domain = parts[1]
-        if "." not in domain or domain.startswith(".") or domain.endswith("."):
-            return False
-        if "," in email_str or " " in email_str:
-            return False
+        value = email_str
     
     # Phone validation
     if field_name == "phone":
@@ -86,6 +80,44 @@ def detect_update_request(user_message):
     """
         Detect if user wants to update information
     """
+
+    update_keywords = ["change", "update", "correct", "fix", "modify", "replace", "wrong", "mistake"]
+    user_lower = user_message.lower()
+    
+    wants_update = any(keyword in user_lower for keyword in update_keywords)
+    
+    if wants_update:
+        field_patterns = {
+            "name": ["name"],
+            "email": ["email"],
+            "phone": ["phone", "number"],
+            "years_experience": ["experience", "years", "yoe"],
+            "desired_position": ["position", "role", "job", "applying"],
+            "location": ["location", "city", "located", "from", "based"],
+            "tech_stack": ["tech", "stack", "technology", "skills", "programming", "languages"]
+        }
+        
+        detected_field = None
+        for field, keywords in field_patterns.items():
+            if any(keyword in user_lower for keyword in keywords):
+                detected_field = field
+                break
+        
+        if detected_field:
+            new_value = None
+            
+            for keyword in ["to ", "as "]:
+                if keyword in user_lower:
+                    parts = user_lower.split(keyword, 1)
+                    if len(parts) > 1:
+                        new_value = parts[1].strip()
+                        break
+            
+            if new_value:
+                return {"wants_update": True, "field": detected_field, "new_value": new_value}
+            else:
+                return {"wants_update": True, "field": detected_field, "new_value": None}
+    
     llm = get_llm()
     
     update_prompt = f"""
@@ -112,10 +144,11 @@ def detect_update_request(user_message):
         response = llm.invoke([SystemMessage(content=update_prompt)])
         content = response.content.strip()
         
-        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        json_match = re.search(r'\{.*?\}', content, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
     except Exception as e:
+        print(f"Error detecting update request: {e}")
         pass
     
     return {"wants_update": False, "field": None, "new_value": None}
@@ -125,6 +158,67 @@ def extract_field_value(user_message, field_name):
     """
         Extract specific field value from user message
     """
+    if field_name == "name":
+        words = user_message.strip().split()
+        if len(words) <= 4 and len(user_message) < 50:
+            irrelevant = ["the", "is", "i'm", "my", "name", "is", "called", "i", "am"]
+            relevant_words = [w for w in words if w.lower() not in irrelevant]
+            if relevant_words:
+                return " ".join(relevant_words)
+    
+    if field_name == "email":
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        match = re.search(email_pattern, user_message)
+        if match:
+            return match.group(0)
+    
+    if field_name == "phone":
+        phone_pattern = r'\d{10}'
+        match = re.search(phone_pattern, user_message)
+        if match:
+            return match.group(0)
+        phone_with_separators = re.sub(r'[^\d]', '', user_message)
+        if len(phone_with_separators) >= 10:
+            return phone_with_separators[:10]
+    
+    if field_name == "years_experience":
+        if any(keyword in user_message.lower() for keyword in ["fresher", "fresh graduate", "no experience", "0 years", "just graduated", "beginner"]):
+            return 0
+        numbers = re.findall(r'\d+', user_message)
+        if numbers:
+            return int(numbers[0])
+    
+    if field_name == "desired_position":
+        if len(user_message) < 100:
+            filler_words = ["i'm", "i am", "applying for", "looking for", "want", "interested in", "position", "role", "job", "as", "a", "an"]
+            cleaned = user_message.lower()
+            for word in filler_words:
+                cleaned = re.sub(r'\b' + re.escape(word) + r'\b', '', cleaned).strip()
+            if cleaned and len(cleaned) > 2:
+                return cleaned.title()
+    
+    if field_name == "location":
+        if len(user_message) < 50:
+            filler_words = ["i'm", "i am", "located in", "from", "based in", "live in", "city", "state", "country"]
+            cleaned = user_message.lower()
+            for word in filler_words:
+                cleaned = re.sub(r'\b' + re.escape(word) + r'\b', '', cleaned).strip()
+            if cleaned and len(cleaned) > 1:
+                return cleaned.title()
+    
+    if field_name == "tech_stack":
+        if "," in user_message:
+            return user_message.strip()
+        tech_keywords = ["python", "java", "javascript", "typescript", "react", "django", "node", "sql", "postgres", "mongodb", "docker", "kubernetes", "aws", "git", "html", "css", "c++", "c#", ".net", "php", "ruby", "golang", "rust", "kotlin", "swift", "flutter", "vue", "angular", "spring", "fastapi", "express", "flask"]
+        if any(keyword in user_message.lower() for keyword in tech_keywords):
+            filler_words = ["i know", "i'm proficient in", "i have", "experience with", "skilled in", "expertise in", "familiar with", "and", ","]
+            cleaned = user_message.lower()
+            for word in filler_words:
+                cleaned = cleaned.replace(word, "").strip()
+            if cleaned and len(cleaned) > 2:
+                return cleaned.strip()
+            return user_message.strip()
+    
     llm = get_llm()
     
     field_descriptions = {
@@ -161,12 +255,12 @@ def extract_field_value(user_message, field_name):
     try:
         response = llm.invoke([SystemMessage(content=extraction_prompt)])
         content = response.content.strip()
-        
-        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        json_match = re.search(r'\{.*?\}', content, re.DOTALL)
         if json_match:
             extracted_data = json.loads(json_match.group())
             return extracted_data.get("value")
     except Exception as e:
+        print(f"Error extracting {field_name}: {e}")
         pass
     
     return None

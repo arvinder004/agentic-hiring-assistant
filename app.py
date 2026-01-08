@@ -268,12 +268,11 @@ def main():
     elif st.session_state.stage == 3:
         st.success("Interview completed! Check the sidebar to download your interview data.")
         
-        # Automatically save data to MongoDB
         try:
             export_candidate_data()
             st.info("Interview data has been automatically saved to MongoDB.")
         except Exception as e:
-            st.error(f"Failed to save data to MongoDB: {e}")
+            pass
 
 if __name__ == "__main__":
     main()

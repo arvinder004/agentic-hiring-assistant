@@ -12,7 +12,7 @@ def get_llm():
         st.stop()
     
     return ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="meta-llama/llama-prompt-guard-2-86m",
         temperature=0.7,
         groq_api_key=api_key
     )
